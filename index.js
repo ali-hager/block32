@@ -42,7 +42,7 @@ app.put('/api/notes/:id', async(req, res, next)=> {
     const SQL = `
       UPDATE notes
       SET txt=$1, ranking=$2, updated_at=now()
-      WHERE id = $4
+      WHERE id = $3
       RETURNING *
     `;
     const response = await client.query(SQL,[req.body.txt, req.body.ranking, req.params.id]);
