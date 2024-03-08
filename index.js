@@ -1,6 +1,92 @@
 const pg = require('pg');
 const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/acme_notes_crud_db');
 const express = require('express');
+const app = express();
+const morgan = require('morgan');
+
+app.use(express.json());
+app.use(morgan('dev'));
+
+app.get('/api/notes', async(req, res, next)=> {
+  try{
+    const SQL = `
+      SELECT *
+      FROM NOTES
+      ORDER BY ranking DESC
+    `;
+    const response = await client.query(SQL);
+    res.send(response.rows);
+  }
+  catch (ex){
+    next(ex);
+  }
+});
+
+app.post('/api/notes', async(req, res, next)=> {
+  try{
+    const SQL = `
+      INSERT INTO notes(txt, ranking)
+      VALUES ($1, $2)
+      RETURNING *
+    `;
+    const response = await client.query(SQL, [req.body.txt, req.body.ranking]);
+    res.send(response.rows[0]);
+  }
+  catch (ex){
+    next(ex);
+  }
+});
+
+app.put('/api/notes/:id', async(req, res, next)=> {
+  try{
+    const SQL = `
+      UPDATE notes
+      SET txt=$1, ranking=$2, updated_at=now()
+      WHERE id = $4
+      RETURNING *
+    `;
+    const response = await client.query(SQL,[req.body.txt, req.body.ranking, req.params.id]);
+    res.send(response.rows[0]);
+  }
+  catch (ex){
+    next(ex);
+  }
+});
+
+app.get('/api/notes/:id', async(req, res, next)=> {
+  try{
+    const SQL = `
+      SELECT *
+      FROM NOTES
+      WHERE id = $1
+    `;
+    const response = await client.query(SQL,[req.params.id]);
+    res.send(response.rows[0]);
+  }
+  catch (ex){
+    next(ex);
+  }
+});
+
+app.delete('/api/notes/:id', async(req, res, next)=> {
+  try{
+    const SQL = `
+      DELETE
+      FROM NOTES
+      WHERE id = $1
+    `;
+    const response = await client.query(SQL,[req.params.id]);
+    res.sendStatus(204);
+  }
+  catch (ex){
+    next(ex);
+  }
+});
+
+app.use((err, req, res, next)=> {
+  console.log(err);
+  res.status(err.status || 500).send({ message: err.message || err });
+});
 
 const init = async() => {
   console.log('connecting to database');
@@ -20,12 +106,16 @@ const init = async() => {
   console.log('tables created');
 
   SQL = `
-      INSERT INTO notes(txt) VALUES('hello');
-      INSERT INTO notes(txt, ranking) VALUES('world', 3);
-      INSERT INTO notes(ranking, txt) VALUES(3, 'hello world again!')
+    INSERT INTO notes(txt, ranking) VALUES('learn express', 5);
+    INSERT INTO notes(txt, ranking) VALUES('write SQL queries', 4);
+    INSERT INTO notes(txt, ranking) VALUES('create routes', 2);
   `;
 await client.query(SQL);
 console.log('data seeded');
+
+const port = process.env.PORT || 3000;
+app.listen(port, ()=> console.log(`listening on port ${port}`));
+
 }
 
 init();
